@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P7m Extractor</title>
+
+    <!-- Tailwind CSS for styling and Dark/Light mode -->
+    <script src="tailwindcss.js"></script>
+    <!-- JSZip for creating the final ZIP file -->
+    <script src="jszip.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="lucide.min.js"></script>
+
+    <style>
+        /* Custom progress bar transition */
+        .progress-bar {
+            transition: width 0.3s ease-in-out;
+        }
+        /* Custom scrollbar for table area */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 20px;
+        }
+
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #475569;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex items-center justify-center p-4 sm:p-8 font-sans transition-colors duration-300">
+
+    <!-- Main Workspace Area -->
+    <main class="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl w-full max-w-4xl p-6 sm:p-10 transition-colors duration-300">
+
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-2">
+                P7m Extractor
+            </h1>
+        </header>
+
+        <!-- View 1: Drag & Drop Area -->
+        <div id="drop-zone-view" class="block">
+            <div id="drop-zone" class="border-4 border-dashed border-slate-300 dark:border-slate-600 rounded-2xl p-12 text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-400 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-all duration-200 group">
+                <i data-lucide="upload-cloud" class="w-16 h-16 mx-auto mb-4 text-slate-400 group-hover:text-blue-500 transition-colors duration-200"></i>
+                <h3 class="text-xl font-semibold mb-2">Drag & drop your .p7m files here</h3>
+                <p class="text-slate-500 dark:text-slate-400">or click to browse from your computer</p>
+                <input type="file" id="file-input" class="hidden" multiple accept=".p7m,.P7M">
+            </div>
+        </div>
+
+        <!-- View 2: Progress Area -->
+        <div id="progress-view" class="hidden">
+            <div class="bg-slate-50 dark:bg-slate-700/50 rounded-2xl p-12 text-center border-2 border-transparent">
+                <div class="mb-6 flex justify-between items-end">
+                    <span class="text-lg font-medium">Extracting files...</span>
+                    <span id="progress-text" class="text-2xl font-bold text-blue-600 dark:text-blue-400">0%</span>
+                </div>
+                <!-- Progress Bar -->
+                <div class="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-4 mb-2 overflow-hidden">
+                    <div id="progress-bar" class="progress-bar bg-blue-600 h-4 rounded-full" style="width: 0%"></div>
+                </div>
+                <p id="progress-details" class="text-sm text-slate-500 dark:text-slate-400 mt-4">Initializing...</p>
+            </div>
+        </div>
+
+        <!-- View 3: Results Area -->
+        <div id="results-view" class="hidden">
+            <div class="bg-slate-50 dark:bg-slate-700/30 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden mb-8">
+                <div class="max-h-80 overflow-y-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="bg-slate-100 dark:bg-slate-700 sticky top-0 shadow-sm z-10">
+                            <tr>
+                                <th class="py-4 px-6 font-semibold text-sm w-16 text-center">Icon</th>
+                                <th class="py-4 px-6 font-semibold text-sm">Extracted File Name</th>
+                                <th class="py-4 px-6 font-semibold text-sm w-32 text-center">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="results-table-body" class="divide-y divide-slate-200 dark:divide-slate-700">
+                            <!-- Rows will be dynamically injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex flex-col sm:flex-row justify-between gap-4">
+                <button id="btn-reset" class="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-lg shadow-orange-500/30 focus:ring-4 focus:ring-orange-500/50">
+                    <i data-lucide="refresh-cw" class="w-5 h-5"></i>
+                    Convert others P7m
+                </button>
+                <button id="btn-download-all" class="flex-1 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-lg shadow-green-500/30 focus:ring-4 focus:ring-green-500/50">
+                    <i data-lucide="archive" class="w-5 h-5"></i>
+                    Download all files
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Worker Logic for "Brutal" Extraction without freezing the UI -->
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // UI Elements
+        const dropZoneView = document.getElementById('drop-zone-view');
+        const progressView = document.getElementById('progress-view');
+        const resultsView = document.getElementById('results-view');
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const progressDetails = document.getElementById('progress-details');
+
+        const resultsTableBody = document.getElementById('results-table-body');
+        const btnReset = document.getElementById('btn-reset');
+        const btnDownloadAll = document.getElementById('btn-download-all');
+
+        let extractedFiles = []; // Holds the result blobs
+
+        // Setup Drag & Drop events
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('border-blue-500', 'bg-blue-50', 'dark:bg-slate-700');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('border-blue-500', 'bg-blue-50', 'dark:bg-slate-700');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('border-blue-500', 'bg-blue-50', 'dark:bg-slate-700');
+            if (e.dataTransfer.files.length > 0) {
+                processFiles(e.dataTransfer.files);
+            }
+        });
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                processFiles(e.target.files);
+            }
+        });
+
+        // Reset Button
+        btnReset.addEventListener('click', () => {
+            extractedFiles = [];
+            fileInput.value = '';
+            resultsTableBody.innerHTML = '';
+            dropZoneView.classList.remove('hidden');
+            resultsView.classList.add('hidden');
+            lucide.createIcons();
+        });
+
+        // Download All Button (ZIP)
+        btnDownloadAll.addEventListener('click', async () => {
+            const zip = new JSZip();
+
+            // Add files to ZIP
+            extractedFiles.forEach(file => {
+                zip.file(file.name, file.blob);
+            });
+
+            // Generate ZIP and trigger download
+            const zipBlob = await zip.generateAsync({ type: "blob" });
+            const url = URL.createObjectURL(zipBlob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = "Extracted_P7M_Files.zip";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
+        // Main file processing logic
+        async function processFiles(files) {
+            extractedFiles = [];
+
+            // UI Transition
+            dropZoneView.classList.add('hidden');
+            progressView.classList.remove('hidden');
+
+            const totalFiles = files.length;
+
+            for (let i = 0; i < totalFiles; i++) {
+                const file = files[i];
+
+                // Update Progress UI
+                const percent = Math.round((i / totalFiles) * 100);
+                progressBar.style.width = `${percent}%`;
+                progressText.innerText = `${percent}%`;
+                progressDetails.innerText = `Processing: ${file.name}`;
+
+                // Process file brutally
+                try {
+                    const result = await extractBrutally(file);
+                    extractedFiles.push(result);
+                } catch (error) {
+                    console.error(`Error extracting ${file.name}:`, error);
+                    // Add as failed/unknown but provide the original file minus extension
+                    extractedFiles.push({
+                        name: file.name.replace(/\.p7m$/i, '.unknown'),
+                        blob: file,
+                        icon: 'file-warning'
+                    });
+                }
+            }
+
+            // Final 100% UI state
+            progressBar.style.width = `100%`;
+            progressText.innerText = `100%`;
+            progressDetails.innerText = `Done! Preparing results...`;
+
+            // Small delay to let the user see 100%
+            setTimeout(() => {
+                renderResults();
+                progressView.classList.add('hidden');
+                resultsView.classList.remove('hidden');
+            }, 600);
+        }
+
+        // The Brutal Extractor Web Worker code
+        // We use a worker so heavy byte-scanning doesn't freeze the UI animation
+        const workerCode = `
+            self.onmessage = function(e) {
+                const fileData = e.data.buffer;
+                const fileName = e.data.name;
+                const u8 = new Uint8Array(fileData);
+
+                // Helper: Find byte sequence
+                function findSeq(arr, seq) {
+                    for (let i = 0; i <= arr.length - seq.length; i++) {
+                        if (arr[i] === seq[0]) {
+                            let match = true;
+                            for (let j = 1; j < seq.length; j++) {
+                                if (arr[i+j] !== seq[j]) { match = false; break; }
+                            }
+                            if (match) return i;
+                        }
+                    }
+                    return -1;
+                }
+
+                // Helper: Find byte sequence from the end
+                function findLastSeq(arr, seq) {
+                    for (let i = arr.length - seq.length; i >= 0; i--) {
+                        if (arr[i] === seq[0]) {
+                            let match = true;
+                            for (let j = 1; j < seq.length; j++) {
+                                if (arr[i+j] !== seq[j]) { match = false; break; }
+                            }
+                            if (match) return i;
+                        }
+                    }
+                    return -1;
+                }
+
+                // Magic bytes definitions
+                const pdfMagic = [0x25, 0x50, 0x44, 0x46, 0x2D]; // %PDF-
+                const eofMagic = [0x25, 0x25, 0x45, 0x4F, 0x46]; // %%EOF
+                const xmlMagic = [0x3C, 0x3F, 0x78, 0x6D, 0x6C]; // <?xml
+
+                let extracted = null;
+                let outName = fileName.replace(/\\.p7m$/i, '');
+                let iconType = 'file';
+
+                // 1. Check if it's an email (starts with ASCII text headers)
+                let startText = "";
+                for(let i=0; i<Math.min(100, u8.length); i++) {
+                    startText += String.fromCharCode(u8[i]);
+                }
+                if (startText.includes("Content-Type:") || startText.includes("MIME-Version:") || startText.includes("Return-Path:")) {
+                    outName = outName.includes('.') ? outName : outName + '.eml';
+                    if(!outName.toLowerCase().endsWith('.eml')) outName += '.eml';
+                    extracted = u8; // Return as EML, email clients ignore trailing signature
+                    iconType = 'mail';
+                }
+
+                // 2. Brutal PDF Extraction (Find %PDF- and last %%EOF)
+                if (!extracted) {
+                    let pdfStart = findSeq(u8, pdfMagic);
+                    if (pdfStart !== -1) {
+                        let pdfEnd = findLastSeq(u8, eofMagic);
+                        if (pdfEnd !== -1) {
+                            // slice creates a copy, safe to transfer
+                            extracted = u8.slice(pdfStart, pdfEnd + 5);
+                            if (!outName.toLowerCase().endsWith('.pdf')) outName += '.pdf';
+                            iconType = 'file-text';
+                        }
+                    }
+                }
+
+                // 3. Brutal XML Extraction (Fatturazione Elettronica)
+                if (!extracted) {
+                    let xmlStart = findSeq(u8, xmlMagic);
+                    if (xmlStart !== -1) {
+                        let lastBracket = findLastSeq(u8, [0x3E]); // '>'
+                        if (lastBracket !== -1 && lastBracket > xmlStart) {
+                            extracted = u8.slice(xmlStart, lastBracket + 1);
+                            if (!outName.toLowerCase().endsWith('.xml')) outName += '.xml';
+                            iconType = 'file-code';
+                        }
+                    }
+                }
+
+                // 4. Fallback: ASN.1 largest OCTET STRING brutal scan
+                if (!extracted) {
+                    let maxSize = 0;
+                    let bestSlice = null;
+                    let i = 0;
+                    while (i < u8.length - 2) {
+                        if (u8[i] === 0x04) { // OCTET STRING Tag
+                            let len = u8[i+1];
+                            let dataStart = i + 2;
+                            if (len & 0x80) { // Long form length
+                                let numBytes = len & 0x7F;
+                                if (i + 1 + numBytes < u8.length) {
+                                    len = 0;
+                                    for (let b = 0; b < numBytes; b++) {
+                                        len = (len << 8) | u8[i + 2 + b];
+                                    }
+                                    dataStart = i + 2 + numBytes;
+                                } else {
+                                    i++; continue;
+                                }
+                            }
+                            if (len > 0 && dataStart + len <= u8.length) {
+                                if (len > maxSize) {
+                                    maxSize = len;
+                                    bestSlice = u8.slice(dataStart, dataStart + len);
+                                }
+                                i = dataStart + len;
+                                continue;
+                            }
+                        }
+                        i++;
+                    }
+                    if (bestSlice && maxSize > u8.length * 0.1) { // Accept if >10% of file
+                        extracted = bestSlice;
+                        iconType = 'file';
+                    } else {
+                        // Ultimate Fallback: return raw data minus .p7m extension
+                        extracted = u8;
+                        iconType = 'file-question';
+                    }
+                }
+
+                // Send back to main thread
+                self.postMessage({ buffer: extracted.buffer, name: outName, icon: iconType }, [extracted.buffer]);
+            };
+        `;
+
+        // Wrapper function to process via Worker
+        function extractBrutally(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const blob = new Blob([workerCode], { type: 'application/javascript' });
+                    const worker = new Worker(URL.createObjectURL(blob));
+
+                    worker.onmessage = function(event) {
+                        const extractedBuffer = event.data.buffer;
+                        const outName = event.data.name;
+                        const iconType = event.data.icon;
+
+                        // Recreate file blob
+                        const outBlob = new Blob([extractedBuffer]);
+                        resolve({
+                            name: outName,
+                            blob: outBlob,
+                            icon: iconType
+                        });
+                        worker.terminate();
+                    };
+
+                    worker.onerror = function(err) {
+                        worker.terminate();
+                        reject(err);
+                    };
+
+                    worker.postMessage({ buffer: e.target.result, name: file.name }, [e.target.result]);
+                };
+                reader.onerror = (err) => reject(err);
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // Render the results table
+        function renderResults() {
+            resultsTableBody.innerHTML = '';
+
+            extractedFiles.forEach((file, index) => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors group";
+
+                // Create a temporary ObjectURL for individual download
+                const url = URL.createObjectURL(file.blob);
+
+                tr.innerHTML = `
+                    <td class="py-4 px-6 text-center">
+                        <i data-lucide="${file.icon}" class="w-6 h-6 mx-auto text-slate-500 dark:text-slate-400 group-hover:text-blue-500 transition-colors"></i>
+                    </td>
+                    <td class="py-4 px-6 font-medium text-slate-800 dark:text-slate-200 truncate max-w-xs sm:max-w-md">
+                        ${file.name}
+                    </td>
+                    <td class="py-4 px-6 text-center">
+                        <a href="${url}" download="${file.name}" class="inline-flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-600 dark:hover:bg-slate-500 text-slate-700 dark:text-slate-100 px-4 py-2 rounded-lg font-medium transition-colors text-sm">
+                            <i data-lucide="download" class="w-4 h-4"></i>
+                            Download
+                        </a>
+                    </td>
+                `;
+                resultsTableBody.appendChild(tr);
+            });
+
+            lucide.createIcons();
+        }
+    </script>
+</body>
+</html>
