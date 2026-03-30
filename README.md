@@ -67,6 +67,14 @@ A privacy-first .p7m (PKCS#7) extractor built with vanilla JavaScript. It bypass
 <li>Start extracting!</li>
 </ol>
 
+<h2>🙏 Credits & Inspiration</h2>
+
+<ul>
+<li><strong><a href="https://tailwindcss.com/" target="_blank">Tailwind CSS</a></strong>: For making the UI beautiful, responsive, and adaptive with minimal effort.</li>
+<li><strong><a href="https://stuk.github.io/jszip/" target="_blank">JSZip</a></strong>: For enabling seamless, client-side ZIP archive generation.</li>
+<li><strong><a href="https://lucide.dev/" target="_blank">Lucide Icons</a></strong>: For the clean, modern, and lightweight icon set.</li>
+</ul>
+
 <a href="https://github.com/R0mb0/Crafted_with_AI">
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="https://github.com/R0mb0/Crafted_with_AI/blob/main/Badge/SVG/CraftedWithAIDark.svg">
