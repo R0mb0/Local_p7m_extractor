@@ -5,6 +5,18 @@
 A privacy-first .p7m (PKCS#7) extractor built with vanilla JavaScript. It bypasses cryptographic checks to instantly extract the underlying files completely offline using Web Workers. No server uploads, no file size limits.
 </p>
 
+<div align="center">
+  <a href="http://paypal.me/R0mb0">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/R0mb0/Support_the_dev_badge/blob/main/Badge/SVG/Support_the_dev_badge_Dark.svg">
+      <source media="(prefers-color-scheme: light)" srcset="https://github.com/R0mb0/Support_the_dev_badge/blob/main/Badge/SVG/Support_the_dev_badge_Light.svg">
+      <img alt="Saved you time? Support the dev" src="https://github.com/R0mb0/Support_the_dev_badge/blob/main/Badge/SVG/Support_the_dev_badge_Default.svg">
+    </picture>
+  </a>
+</div>
+
+---
+
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/c0b978041611473dbbf8a507faf18726)](https://app.codacy.com/gh/R0mb0/Local_p7m_extractor/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
 [![pages-build-deployment](https://github.com/R0mb0/Local_p7m_extractor/actions/workflows/pages/pages-build-deployment/badge.svg)](https://github.com/R0mb0/Local_p7m_extractor/actions/workflows/pages/pages-build-deployment)
 [![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/R0mb0/Local_p7m_extractor)
